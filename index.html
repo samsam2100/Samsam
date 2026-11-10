@@ -19,8 +19,10 @@ button.pk{background:var(--pk3)}button.lt{background:var(--sk);color:var(--tx);b
 .opt{display:block;width:100%;text-align:right;background:var(--sk);color:var(--tx);border:2px solid var(--sk2)}
 .opt.sel{background:var(--pk);border-color:var(--pk3)}.opt.ok{background:#e3f6e8;border-color:#7dc58f}.opt.no{background:#fde2e2;border-color:#e59a9a}
 table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{border:1px solid var(--sk2);padding:6px;text-align:center}th{background:var(--sk)}
+.tw{overflow-x:auto}
 .vis{background:var(--pk);border-radius:10px;padding:8px;font-size:1.1rem}.err{color:#c0392b}.row{margin:4px 0}
 .badge{display:inline-block;background:var(--pk);border:2px solid var(--pk2);border-radius:20px;padding:4px 12px;margin:3px}
+.lo{color:#c0392b;font-weight:bold}.hi{color:#2e8b57;font-weight:bold}
 #qr svg{width:170px;height:170px}
 @media print{body *{visibility:hidden}#rep,#rep *,#sr,#sr *{visibility:visible}#rep,#sr{position:absolute;top:0;right:0;left:0}.np{display:none!important}}
 </style></head><body>
@@ -29,7 +31,7 @@ table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{border:1px solid
 <main>
 <section id="home" class="view on">
 <div class="card"><h3>بيانات الطالبة (إلزامية)</h3>
-<input id="nm" placeholder="اسم الطالبة"><input id="gr" placeholder="الصف الدراسي"><div id="he" class="err"></div></div>
+<input id="nm" placeholder="اسم الطالبة (ثلاثي)"><input id="gr" placeholder="الصف الدراسي"><div id="he" class="err"></div></div>
 <h3>اختاري الاختبار (25 سؤالاً لكل اختبار)</h3><div class="grid" id="lvs"></div></section>
 
 <section id="quiz" class="view"><div class="card"><div id="qh"></div><div class="bar"><i id="pb"></i></div>
@@ -37,14 +39,21 @@ table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{border:1px solid
 
 <section id="res" class="view"><div class="card" id="rs"></div><div id="pl"></div></section>
 
-<section id="dsh" class="view"><div id="rep"><div class="card"><h3>لوحة المعلمة - أرشيف الشواهد</h3>
-<div id="tb"></div>
-<div class="np card p"><b>📥 استيراد نتائج الطالبات</b><br>الصقي رسائل الواتساب التي أرسلتها الطالبات (يمكن لصق عدة رسائل معاً):<textarea id="im" rows="3" style="width:100%"></textarea><button onclick="imp()">إضافة النتائج</button><span id="ie"></span></div>
+<section id="dsh" class="view"><div id="rep"><div class="card"><h3>لوحة المعلمة - نتائج الطالبات (صف واحد لكل طالبة)</h3>
+<div class="np card p"><b>🔐 رمز المعلمة</b><br><input id="ck" type="password" placeholder="اكتبي رمز المعلمة"><button onclick="dash()">عرض نتائج جميع الطالبات</button><div id="cs"></div></div>
+<div id="tb" class="tw"></div>
+<div class="np card p"><b>📥 استيراد نتائج الطالبات (اختياري)</b><br>الصقي رسائل الواتساب التي أرسلتها الطالبات:<textarea id="im" rows="3" style="width:100%"></textarea><button onclick="imp()">إضافة النتائج</button><span id="ie"></span></div>
 <div style="margin-top:12px"><div class="np">رابط المنصة للرمز: <input id="ul" size="40" dir="ltr"><button class="lt" onclick="drawQR()">تحديث الرمز</button></div>
 <div id="qr"></div><div id="qe" class="err"></div></div></div></div>
 <button class="pk np" onclick="window.print()">طباعة أو حفظ التقرير (شاهد رسمي)</button></section>
 </main>
 <script>
+/* ====== الإعدادات ======
+ الصقي هنا رابط تطبيق الويب من Google Apps Script (ينتهي بـ /exec) بين علامتي الاقتباس */
+const SHEET_URL="https://script.google.com/macros/s/AKfycbwq6iNti3To6777G1Dk4GIesfhcF_xzGhcn1WvzuVTTzSwcNjqEcUdhNsgvrr05onyy/exec";
+/* للإرسال التلقائي عبر Formspree (اختياري): */
+const TEACHER_ENDPOINT="";
+
 const $=id=>document.getElementById(id),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const sh=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const K={g:{n:"الغذاء والبيئة",sum:"النبات منتج يصنع غذاءه بالشمس، والمستهلكات تتغذى على غيرها، والمحللات تحلل بقايا الأحياء الميتة. الشبكة الغذائية سلاسل متداخلة، وتقل الطاقة عند كل انتقال.",vis:"☀️ → 🌱 → 🐛 → 🐦 → 🦅 ↘ 🍄",k:"ارسمي شبكة غذائية من 6 كائنات بأسهم تدل على اتجاه انتقال الطاقة.",p:[["المنتج","يصنع غذاءه"],["المستهلك","يتغذى على غيره"],["المحلل","يحلل بقايا الأحياء"]],f:["تبدأ الطاقة في السلسلة الغذائية من ___","الشمس","الماء","التربة"]},
@@ -62,7 +71,7 @@ const L=[{t:"الاختبار التمهيدي",s:"الأساسيات",q:[
 "الوحدة الأساسية في بناء الكائنات الحية:|الخلية|الذرة|العضو|c","الجزء الذي يتحكم بأنشطة الخلية:|النواة|الجدار الخلوي|الفجوة|c","انتقال الصفات من الآباء إلى الأبناء يسمى:|الوراثة|التبخر|الهضم|c",
 "أي مما يلي من حالات المادة؟|الصلبة|الحركية|الضوئية|m","تحول الماء السائل إلى بخار يسمى:|التبخر|التجمد|الانصهار|m","وحدة قياس الكتلة:|الكيلوجرام|اللتر|المتر|m",
 "مادة موصلة للكهرباء:|النحاس|الخشب|البلاستيك|e","مصدر طبيعي للضوء والحرارة:|الشمس|المرآة|القمر|e","جزء الدائرة الذي يعد مصدر الطاقة:|البطارية|السلك|المصباح|e",
-"يدور القمر حول:|الأرض|الشمس|المريخ|s","سبب تعاقب الليل والنهار:|دوران الأرض حول نفسها|دوران القمر|دوران الأرض حول الشمس|s","أولى خطوات الطريقة العلمية:|تحديد المشكلة|كتابة النتيجة|تنفيذ التجربة|i",
+"يدور القمر حول:|الأرض|الشمس|المريخ|s","أقرب نجم إلى الأرض هو:|الشمس|القمر|الزهرة|s","سبب تعاقب الليل والنهار:|دوران الأرض حول نفسها|دوران القمر|دوران الأرض حول الشمس|s","أولى خطوات الطريقة العلمية:|تحديد المشكلة|كتابة النتيجة|تنفيذ التجربة|i",
 "أداة قياس درجة الحرارة:|الترمومتر|المسطرة|الميزان|i","الفرضية هي:|إجابة مقترحة قابلة للاختبار|نتيجة نهائية مؤكدة|سؤال بلا إجابة|i","المتغير الذي نقيسه في التجربة يسمى:|المتغير التابع|المتغير المستقل|الثابت|d","التمثيل الذي يقارن بين القيم بأعمدة:|الأعمدة البيانية|الميزان|المجهر|d"]},
 {t:"الاختبار الاستقصائي",s:"التطبيق",q:[
 "في السلسلة عشب ← جندب ← ضفدع ← ثعبان، المستهلك الثاني هو:|الضفدع|الجندب|الثعبان|g","إذا قلّت الضفادع فعدد الجنادب غالباً:|يزداد|يقل|لا يتغير|g","الصقر في سلسلة نبات ← فأر ← صقر يعد:|مستهلكاً ثانوياً|منتجاً|محللاً|g","الشبكة الغذائية أكثر ترابطاً من السلسلة لأن:|الكائن يتغذى على أكثر من نوع|الشمس تغيب|الماء قليل|g",
@@ -95,12 +104,15 @@ const EN=[["تحدي STEM: لتصنعي مجففاً شمسياً للفواكه
 ["لغز: أبدأ السلسلة ولا آكل أحداً، أصنع غذائي بالضوء، من أنا؟","النبات","الصقر","الفطر","🌱 شارة حلّالة الألغاز"],
 ["لغز تفكير عليا: إذا اختفت كل المحللات من غابة فماذا يحدث؟","تتراكم البقايا وتقل مغذيات التربة","تزداد المغذيات","لا شيء","🍄 شارة المفكرة العليا"],
 ["تحدي استقصاء: لاختبار سرعة ذوبان السكر بتغيير متغير واحد نغيّر:","حرارة الماء فقط","الماء والكأس والكمية معاً","كل شيء","⚗️ شارة العالمة الصغيرة"]];
-/* للإرسال التلقائي للمعلمة: الصقي هنا رابط نموذج Formspree الخاص بك بين علامتي الاقتباس، مثال: "https://formspree.io/f/xxxxxxx" */
-const TEACHER_ENDPOINT="";
-const S={};let mem=[];
+const S={};let mem=[],CODE='';
+try{CODE=sessionStorage.getItem('nk')||''}catch(e){}
 function repText(r,f,ok){return `تقرير نافس - علوم\nالطالبة: ${r.n}\nالصف: ${r.g}\nالاختبار: ${r.l}\nالدرجة: ${r.sc}\nالمهارات التي حدث فيها إخفاق: ${r.f.length?r.f.join('، '):'لا يوجد'}\nالخطة المخصصة: ${r.p}\nالتاريخ: ${r.d}\nرمز النتيجة (للاستيراد في لوحة المعلمة): NF:${btoa(encodeURIComponent(JSON.stringify(r)))}`}
 function repHTML(r,f,ok){return `<h3>تقرير ${esc(r.p)} - علوم الصف السادس</h3><p>الطالبة: <b>${esc(r.n)}</b> • الصف: ${esc(r.g)} • التاريخ: ${esc(r.d)}</p><p>الاختبار: ${esc(r.l)} • الدرجة: <b>${esc(r.sc)}</b></p>`+(f.length?`<p>المهارات التي حدث فيها إخفاق: ${esc(r.f.join('، '))}</p>`:'<p>لا توجد مهارات إخفاق.</p>')+(ok?'<p>🌟 أتمّت الطالبة الاختبار بتميز وتم توجيهها إلى مسار الإثراء.</p>':f.map(k=>{const c=K[k];return `<div style="border:1px solid #bfe3f5;border-radius:10px;padding:8px;margin:6px 0"><b>${c.n}</b><p>📖 ${c.sum}</p><p>👁️ ${c.vis}</p><p>✋ ${c.k}</p></div>`}).join(''))+'<p><small>منظومة نافس الذكية للعلوم - المرحلة الابتدائية</small></p>'}
 function autoSend(r,t){const bad=()=>{$('sst').textContent='تعذر الإرسال التلقائي، استخدمي زر المشاركة'};fetch(TEACHER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({name:r.n,grade:r.g,test:r.l,score:r.sc,message:t})}).then(x=>{$('sst').textContent=x.ok?'✅ تم إرسال التقرير إلى المعلمة تلقائياً':'تعذر الإرسال التلقائي، استخدمي زر المشاركة';if(!x.ok)bad()}).catch(bad)}
+/* حفظ نتيجة الطالبة في جدول جوجل المركزي */
+function cloudSend(r){const el=$('cst');if(!SHEET_URL)return;
+fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(r)})
+.then(()=>{el.textContent='✅ تم حفظ نتيجتك عند المعلمة'}).catch(()=>{el.textContent='تعذر حفظ النتيجة عند المعلمة، تأكدي من الاتصال بالإنترنت واستخدمي زر المشاركة'})}
 async function shareRep(){const h='<html dir="rtl" lang="ar"><meta charset="utf-8"><body style="font-family:Tahoma">'+S.rh+'</body></html>';
 try{const fl=new File([h],'nafes-report.html',{type:'text/html'});if(navigator.canShare&&navigator.canShare({files:[fl]})){await navigator.share({files:[fl],title:'تقرير نافس',text:S.rt});return}if(navigator.share){await navigator.share({title:'تقرير نافس',text:S.rt});return}}catch(e){if(e.name=='AbortError')return}
 location.href='mailto:?subject='+encodeURIComponent('تقرير نافس')+'&body='+encodeURIComponent(S.rt)}
@@ -116,12 +128,13 @@ $('qt').textContent=q.q;$('qo').innerHTML='';q.o.forEach(o=>{const b=document.cr
 $('nx').disabled=true;$('nx').textContent=S.i==S.qs.length-1?'إنهاء الاختبار':'التالي'}
 function nextQ(){const q=S.qs[S.i];if(S.pick===q.a)S.sc++;else S.w[q.k]=1;S.i++;S.i<S.qs.length?showQ():finish()}
 function finish(){const pct=Math.round(S.sc/25*100),ok=pct>=80,f=Object.keys(S.w);
-const rec={n:S.n,g:S.g,l:L[S.l].t,sc:S.sc+'/25 ('+pct+'%)',f:f.map(k=>K[k].n),p:ok?'مسار الإثراء':'الخطة العلاجية',d:new Date().toLocaleDateString('ar-SA')};
+const rec={n:S.n,g:S.g,li:S.l,l:L[S.l].t,sc:S.sc+'/25 ('+pct+'%)',f:f.map(k=>K[k].n),p:ok?'مسار الإثراء':'الخطة العلاجية',d:new Date().toLocaleDateString('ar-SA')};
 const a=ld();a.push(rec);sv(a);
-$('rs').innerHTML=`<h3>${esc(S.n)} - ${L[S.l].t}</h3><p style="font-size:1.3rem">الدرجة: <b>${S.sc} من 25</b> (${pct}%)</p><p>${ok?'🌟 أداء متميز! تم توجيهك إلى مسار الإثراء.':'📘 لنعزز المفاهيم معاً! تم توجيهك إلى الخطة العلاجية.'}</p>`+(f.length?`<p>مهارات تحتاج إلى تعزيز: ${rec.f.join('، ')}</p>`:'')+`<button onclick="show('home')">اختبار آخر</button>`;
+$('rs').innerHTML=`<h3>${esc(S.n)} - ${L[S.l].t}</h3><p style="font-size:1.3rem">الدرجة: <b>${S.sc} من 25</b> (${pct}%)</p><p>${ok?'🌟 أداء متميز! تم توجيهك إلى مسار الإثراء.':'📘 لنعزز المفاهيم معاً! تم توجيهك إلى الخطة العلاجية.'}</p>`+(f.length?`<p>مهارات تحتاج إلى تعزيز: ${rec.f.join('، ')}</p>`:'')+`<p id="cst">${SHEET_URL?'جارٍ حفظ نتيجتك عند المعلمة...':''}</p><button onclick="show('home')">اختبار آخر</button>`;
 S.rt=repText(rec,f,ok);S.rh=repHTML(rec,f,ok);
 $('rs').innerHTML+=`<div class="card"><b>📤 تقرير الطالبة للمعلمة</b><p id="sst">${TEACHER_ENDPOINT?'جارٍ إرسال التقرير إلى المعلمة...':''}</p><p><button class="pk" onclick="shareRep()">مشاركة التقرير مع المعلمة</button><button class="lt" onclick="window.print()">طباعة / حفظ PDF</button></p></div><div id="sr" class="card">${S.rh}</div>`;
 if(TEACHER_ENDPOINT)autoSend(rec,S.rt);
+cloudSend(rec);
 $('pl').innerHTML=ok?enrich():remed(f);show('res')}
 function imp(){const t=$('im').value,a=ld();let n=0;(t.match(/NF:[A-Za-z0-9+\/=]+/g)||[]).forEach(c=>{try{const r=JSON.parse(decodeURIComponent(atob(c.slice(3))));if(r&&r.n&&!a.some(x=>JSON.stringify(x)==JSON.stringify(r))){a.push(r);n++}}catch(e){}});
 sv(a);$('im').value='';$('ie').textContent=n?`تمت إضافة ${n} نتيجة`:'لم يتم العثور على نتائج جديدة صالحة';dash()}
@@ -133,8 +146,33 @@ function chk(b){const c=b.parentNode;let ok=0;const s=c.querySelectorAll('select
 function enrich(){S.b=[];return `<h3>مسار الإثراء</h3><div class="card"><b>شاراتك:</b> <span id="bd">لم تحصلي على شارات بعد</span></div>`+EN.map((e,i)=>`<div class="card"><p><b>${i+1}.</b> ${e[0]}</p>${sh([e[1],e[2],e[3]]).map(o=>`<button class="opt" onclick="en(this,${i},${o==e[1]})">${o}</button>`).join('')}</div>`).join('')}
 function en(b,i,r){const p=b.parentNode;if(p.dataset.d)return;p.dataset.d=1;b.classList.add(r?'ok':'no');
 if(r){S.b.push(EN[i][4]);$('bd').innerHTML=S.b.map(x=>`<span class="badge">${x}</span>`).join('')}else{[...p.querySelectorAll('.opt')].find(x=>x.textContent==EN[i][1]).classList.add('ok')}}
-function dash(){const a=ld();$('tb').innerHTML=a.length?`<table><tr><th>اسم الطالبة</th><th>الاختبار المُجتاز</th><th>المهارات التي حدث فيها إخفاق</th><th>الخطة المخصصة</th></tr>`+a.map(r=>`<tr><td>${esc(r.n)}<br><small>${esc(r.g)}</small></td><td>${esc(r.l)}<br><small>${esc(r.sc)}</small></td><td>${r.f.length?esc(r.f.join('، ')):'لا يوجد'}</td><td>${esc(r.p)}</td></tr>`).join('')+'</table>':'<p>لا توجد نتائج مسجلة بعد.</p>';
-show('dsh');if(!$('ul').value)$('ul').value=location.href.split('#')[0];try{drawQR()}catch(e){$('qe').textContent='تعذر رسم الرمز، تأكدي من الرابط'}}
+
+/* ====== لوحة المعلمة: صف واحد لكل طالبة بنتائج الاختبارات الأربعة ====== */
+const nz=s=>String(s||'').replace(/[\u064B-\u0652\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/\s+/g,' ').trim();
+const num=sc=>parseInt(String(sc))||0;
+function render(a){const m={};
+a.forEach(r=>{let li=(r.li===undefined||r.li===null||r.li==='')?L.findIndex(x=>x.t===r.l):Number(r.li);if(!(li>=0&&li<L.length))return;
+const k=nz(r.n);if(!k)return;const o=m[k]=m[k]||{n:r.n,g:r.g,t:{}};o.g=r.g||o.g;o.t[li]=r});
+const rows=Object.values(m).sort((x,y)=>nz(x.n).localeCompare(nz(y.n),'ar'));
+if(!rows.length){$('tb').innerHTML='<p>لا توجد نتائج مسجلة بعد.</p>';return}
+$('tb').innerHTML=`<p>عدد الطالبات: <b>${rows.length}</b></p><table><tr><th>اسم الطالبة</th>`+L.map(l=>`<th>${l.t}</th>`).join('')+`<th>المجموع</th><th>النسبة</th><th>المهارات التي تحتاج تعزيز</th><th>الخطة</th></tr>`+
+rows.map(o=>{let tot=0,cnt=0;const fs=new Set();
+const cells=L.map((l,i)=>{const r=o.t[i];if(!r)return '<td>—</td>';const s=num(r.sc);tot+=s;cnt++;(r.f||[]).forEach(x=>fs.add(x));return `<td class="${s>=20?'hi':s<15?'lo':''}">${s}/25</td>`}).join('');
+const pct=cnt?Math.round(tot/(25*cnt)*100):0;
+return `<tr><td>${esc(o.n)}<br><small>${esc(o.g||'')}</small></td>${cells}<td>${tot}/${25*cnt}<br><small>(${cnt} من ${L.length} اختبارات)</small></td><td>${pct}%</td><td>${fs.size?esc([...fs].join('، ')):'لا يوجد'}</td><td>${pct>=80?'مسار الإثراء':'الخطة العلاجية'}</td></tr>`}).join('')+'</table>'}
+async function dash(){show('dsh');
+const c=$('ck').value.trim()||CODE;if(c){CODE=c;try{sessionStorage.setItem('nk',c)}catch(e){}$('ck').value=c}
+let all=ld();render(all);
+if(SHEET_URL&&c){$('cs').textContent='جارٍ جلب نتائج جميع الطالبات...';
+try{const x=await fetch(SHEET_URL+'?key='+encodeURIComponent(c));const j=await x.json();
+if(!Array.isArray(j))throw new Error('key');
+const seen=new Set(j.map(r=>[nz(r.n),r.li,r.sc].join('|')));
+const extra=all.filter(r=>{const li=(r.li===undefined)?L.findIndex(y=>y.t===r.l):r.li;return !seen.has([nz(r.n),li,r.sc].join('|'))});
+all=j.concat(extra);render(all);$('cs').textContent='✅ تم تحديث النتائج من الجدول المركزي'}
+catch(e){$('cs').textContent='تعذر جلب النتائج: تأكدي من الرمز ومن رابط الجدول'}}
+else if(!SHEET_URL){$('cs').textContent='لم يتم ربط الجدول المركزي بعد، تظهر فقط النتائج المحفوظة في هذا الجوال.'}
+else{$('cs').textContent='اكتبي رمز المعلمة لعرض نتائج جميع الطالبات.'}
+if(!$('ul').value)$('ul').value=location.href.split('#')[0];try{drawQR()}catch(e){$('qe').textContent='تعذر رسم الرمز، تأكدي من الرابط'}}
 /* مولد رمز QR (النسخ 1-5، تصحيح L، وضع البايت) */
 function qr(t){const b=[...new TextEncoder().encode(t)],V=[[17,19,7],[32,34,10],[53,55,15],[78,80,20],[106,108,26]],v=V.findIndex(x=>b.length<=x[0]);if(v<0)return null;
 const dc=V[v][1],ec=V[v][2],n=21+4*v,bits=[],push=(x,l)=>{for(let i=l-1;i>=0;i--)bits.push((x>>i)&1)};
